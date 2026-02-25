@@ -126,9 +126,18 @@ export async function runApiTests(
             return null;
         }
     }
-    if (testName && testFile && category !== 'all') {
-        const fileKey = `${category}/${testFile}`;
-        const allowedNames = apiTestNames[fileKey] || [];
+    if (testName) {
+        let allowedNames: string[] = [];
+        if (testFile && category !== 'all') {
+            const fileKey = `${category}/${testFile}`;
+            allowedNames = apiTestNames[fileKey] || [];
+        } else {
+            Object.keys(apiTestNames).forEach(fileKey => {
+                if (category === 'all' || fileKey.startsWith(`${category}/`)) {
+                    allowedNames.push(...apiTestNames[fileKey]);
+                }
+            });
+        }
         if (!allowedNames.includes(testName)) {
             safeSend(ws, { type: 'api-test-error', content: 'Invalid test name' });
             return null;
