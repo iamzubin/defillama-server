@@ -9,32 +9,31 @@ function extractTestNames(filePath: string): string[] {
     try {
         const content = fs.readFileSync(filePath, 'utf-8');
         const testNameRegex = /(?:it|test)(?:\.(?:only|skip|todo|concurrent))?\s*\(\s*['"`]([^'"`]+)['"`]/g;
-        const testNames: string[] = [];
 
-        for (const match of content.matchAll(testNameRegex)) {
-            testNames.push(match[1]);
+        const testNames = new Set<string>();
+        let match;
+        // biome-ignore lint/suspicious/noAssignInExpressions: standard regex execution
+        while ((match = testNameRegex.exec(content)) !== null) {
+            testNames.add(match[1]);
         }
-        return [...new Set(testNames)].sort((a, b) => a.localeCompare(b));
+
+        return Array.from(testNames).sort((a, b) => a.localeCompare(b));
     } catch {
         return [];
     }
 }
 
-function loadTestCategories(): {
-    categories: string[];
-    testFilesByCategory: Record<string, string[]>;
-    testNamesByFile: Record<string, string[]>;
-} {
+function loadTestCategories() {
     const categories: string[] = ['all'];
     const testFilesByCategory: Record<string, string[]> = {};
     const testNamesByFile: Record<string, string[]> = {};
 
     try {
-        const dirs = fs.readdirSync(apiTestsSrcDir, { withFileTypes: true })
-            .filter(d => d.isDirectory())
-            .sort((a, b) => a.name.localeCompare(b.name));
+        const dirs = fs.readdirSync(apiTestsSrcDir, { withFileTypes: true });
 
         for (const dir of dirs) {
+            if (!dir.isDirectory()) continue;
+
             const categoryName = dir.name;
             const categoryPath = path.join(apiTestsSrcDir, categoryName);
 
@@ -47,13 +46,14 @@ function loadTestCategories(): {
             categories.push(categoryName);
             testFilesByCategory[categoryName] = files;
 
-            files.forEach(file => {
+            for (const file of files) {
                 const names = extractTestNames(path.join(categoryPath, file));
                 if (names.length > 0) {
                     testNamesByFile[`${categoryName}/${file}`] = names;
                 }
-            });
+            }
         }
+        categories.sort((a, b) => a === 'all' ? -1 : b === 'all' ? 1 : a.localeCompare(b));
     } catch (error) {
         console.error('[API Tests] Error reading test directories:', error);
     }
@@ -77,8 +77,8 @@ export interface ApiTestOptions {
 }
 
 export interface TestResult {
-    testSuites: { passed: number; failed: number; total: number };
-    tests: { passed: number; failed: number; total: number };
+    testSuites: { passed: number; failed: number; skipped: number; todo: number; total: number };
+    tests: { passed: number; failed: number; skipped: number; todo: number; total: number };
     duration: string;
     success: boolean;
 }
@@ -87,20 +87,16 @@ let currentTestProcess: ChildProcess | null = null;
 
 
 export function stopApiTests(): boolean {
-    if (currentTestProcess && currentTestProcess.pid) {
-        try {
-            process.kill(currentTestProcess.pid, 'SIGTERM');
-        } catch (e) {
-            currentTestProcess.kill('SIGTERM');
-        }
+    if (currentTestProcess) {
+        currentTestProcess.kill('SIGTERM');
         currentTestProcess = null;
         return true;
     }
     return false;
 }
 
-function safeSend(ws: any, message: any) {
-    if (ws.readyState === (ws.OPEN || 1)) {
+function safeSend(ws: any, message: unknown) {
+    if (ws.readyState === 1 /* OPEN */) {
         try {
             ws.send(typeof message === 'string' ? message : JSON.stringify(message));
         } catch (e) {
@@ -119,6 +115,10 @@ export async function runApiTests(
         safeSend(ws, { type: 'api-test-error', content: 'Invalid category' });
         return null;
     }
+    if (testFile && category === 'all') {
+        safeSend(ws, { type: 'api-test-error', content: 'Cannot specify testFile when category is "all"' });
+        return null;
+    }
     if (testFile && category !== 'all') {
         const allowedFiles = apiTestFiles[category] || [];
         if (!allowedFiles.includes(testFile)) {
@@ -127,41 +127,31 @@ export async function runApiTests(
         }
     }
     if (testName) {
-        let allowedNames: string[] = [];
+        let isValid = false;
         if (testFile && category !== 'all') {
-            const fileKey = `${category}/${testFile}`;
-            allowedNames = apiTestNames[fileKey] || [];
+            const allowedNames = apiTestNames[`${category}/${testFile}`] || [];
+            isValid = allowedNames.includes(testName);
         } else {
-            Object.keys(apiTestNames).forEach(fileKey => {
-                if (category === 'all' || fileKey.startsWith(`${category}/`)) {
-                    allowedNames.push(...apiTestNames[fileKey]);
+            for (const [fileKey, names] of Object.entries(apiTestNames)) {
+                if ((category === 'all' || fileKey.startsWith(`${category}/`)) && names.includes(testName)) {
+                    isValid = true;
+                    break;
                 }
-            });
+            }
         }
-        if (!allowedNames.includes(testName)) {
+        if (!isValid) {
             safeSend(ws, { type: 'api-test-error', content: 'Invalid test name' });
             return null;
         }
     }
 
 
-    const args: string[] = [];
-
-    if (category !== 'all') {
-        if (testFile) {
-            args.push(`src/${category}/${testFile}`);
-        } else {
-            args.push(`src/${category}/`);
-        }
-    }
-
-    if (testName) {
-        args.push('-t', testName);
-    }
-    if (verbose) {
-        args.push('--verbose');
-    }
-    args.push('--passWithNoTests');
+    const args = [
+        category !== 'all' ? `src/${category}/${testFile || ''}` : '',
+        testName ? `-t="${testName}"` : '', // Support test names with spaces
+        verbose ? '--verbose' : '',
+        '--passWithNoTests'
+    ].filter(Boolean);
 
     console.log(`[API Tests] Running: npx jest ${args.join(' ')}`);
     console.log(`[API Tests] Category: ${category}${testFile ? `, File: ${testFile}` : ''}`);
@@ -182,13 +172,7 @@ export async function runApiTests(
         currentTestProcess = testProcess;
 
         const onWsClose = () => {
-            if (testProcess.pid) {
-                try {
-                    process.kill(testProcess.pid, 'SIGTERM');
-                } catch (e) {
-                    // ignore
-                }
-            }
+            testProcess.kill('SIGTERM');
         };
         ws.on('close', onWsClose);
 
@@ -230,6 +214,7 @@ export async function runApiTests(
         });
 
         testProcess.on('error', (err: Error) => {
+            ws.off('close', onWsClose);
             currentTestProcess = null;
             console.error('[API Tests] Process error:', err);
             safeSend(ws, {
@@ -243,26 +228,33 @@ export async function runApiTests(
 
 function parseJestOutput(output: string, success: boolean): TestResult {
     const result: TestResult = {
-        testSuites: { passed: 0, failed: 0, total: 0 },
-        tests: { passed: 0, failed: 0, total: 0 },
+        testSuites: { passed: 0, failed: 0, skipped: 0, todo: 0, total: 0 },
+        tests: { passed: 0, failed: 0, skipped: 0, todo: 0, total: 0 },
         duration: '0s',
         success,
     };
 
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: needed to strip ANSI color codes from terminal output
     const cleanOutput = output.replace(/\x1B\[\d+m/g, '');
 
-    const suitesMatch = cleanOutput.match(/Test Suites:\s*(?:(\d+)\s*failed,\s*)?(?:(\d+)\s*passed,\s*)?(\d+)\s*total/);
-    if (suitesMatch) {
-        result.testSuites.failed = parseInt(suitesMatch[1] || '0', 10);
-        result.testSuites.passed = parseInt(suitesMatch[2] || '0', 10);
-        result.testSuites.total = parseInt(suitesMatch[3] || '0', 10);
+    const suitesLineMatch = cleanOutput.match(/Test Suites:\s*(.+)/);
+    if (suitesLineMatch) {
+        const matches = suitesLineMatch[1].matchAll(/(\d+)\s+(passed|failed|skipped|todo|total)/g);
+        for (const m of matches) {
+            const count = parseInt(m[1], 10);
+            const key = m[2] as keyof typeof result.testSuites;
+            result.testSuites[key] = count;
+        }
     }
 
-    const testsMatch = cleanOutput.match(/Tests:\s*(?:(\d+)\s*failed,\s*)?(?:(\d+)\s*passed,\s*)?(\d+)\s*total/);
-    if (testsMatch) {
-        result.tests.failed = parseInt(testsMatch[1] || '0', 10);
-        result.tests.passed = parseInt(testsMatch[2] || '0', 10);
-        result.tests.total = parseInt(testsMatch[3] || '0', 10);
+    const testsLineMatch = cleanOutput.match(/Tests:\s*(.+)/);
+    if (testsLineMatch) {
+        const matches = testsLineMatch[1].matchAll(/(\d+)\s+(passed|failed|skipped|todo|total)/g);
+        for (const m of matches) {
+            const count = parseInt(m[1], 10);
+            const key = m[2] as keyof typeof result.tests;
+            result.tests[key] = count;
+        }
     }
 
     const timeMatch = cleanOutput.match(/Time:\s*([\d.]+)\s*s/);
