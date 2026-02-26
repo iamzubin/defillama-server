@@ -50,9 +50,8 @@ export const parseAnsiToHtml = (text: string): string => {
         if (code === '0' || code === '22' || code === '39') return '</span>';
         if (code === '1') return '<span style="font-weight: bold">';
         if (code === '2') return '';  // Dim text - skip opacity for readability
-        if (code === '7') return '<span style="background: #333; padding: 2px 4px">';
+        if (code === '7') return '<span style="background: `#333`; padding: 2px 4px">';
         if (code === '27') return '</span>';
-        if (code === '39') return '</span>';
         if (colorMap[code]) return `<span style="color: ${colorMap[code]}">`;
         return '';
     });
