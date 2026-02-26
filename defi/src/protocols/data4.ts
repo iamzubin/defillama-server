@@ -16702,14 +16702,14 @@ const data4: Protocol[] = [
   },
   {
     id: "6282",
-    name: "BONK.fun",
+    name: "BONK.fun Launchpad",
     previousNames: ["letsBONK.fun"],
     address: null,
     symbol: "-",
     url: "https://bonk.fun/",
     description: "Meme token launchpad",
     chain: "Solana",
-    logo: `${baseIconsUrl}/bonk.fun.jpg`,
+    logo: `${baseIconsUrl}/bonk.fun-launchpad.jpg`,
     audits: "0",
     gecko_id: null,
     cmcId: null,
@@ -16717,6 +16717,7 @@ const data4: Protocol[] = [
     chains: ["Solana"],
     module: "dummy.js",
     twitter: "bonkfun",
+    parentProtocol: "parent#bonkfun",
     hallmarks: [
       [
         1749513600,
@@ -20739,7 +20740,8 @@ const data4: Protocol[] = [
     address: null,
     symbol: "-",
     assetToken: "stHYPE",
-    url: "https://app.valantis.xyz/staking",
+    url: "https://app.valantis.xyz/vaults?af=defillama",
+    referralUrl: "https://app.valantis.xyz/vaults?af=defillama",
     description: "The Hyperliquid liquid staking platform.",
     chain: "Hyperliquid L1",
     logo: `${baseIconsUrl}/sthype.jpg`,
@@ -22514,6 +22516,9 @@ const data4: Protocol[] = [
     audit_links: ["https://docs.gaib.ai/audits"],
     github: ["gaib-ai"],
     listedAt: 1754501739,
+    dimensions: {
+      fees: "gaib",
+    },
   },
   {
     id: "6536",
@@ -25820,7 +25825,7 @@ const data4: Protocol[] = [
     listedAt: 1757349667,
     dimensions: {
       derivatives: "pacifica",
-      "open-interest": "pacifica",
+      "open-interest": "pacifica-oi",
       "normalized-volume": "pacifica"
     }
   },
