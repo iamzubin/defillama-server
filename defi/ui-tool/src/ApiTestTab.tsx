@@ -1,4 +1,4 @@
-import { Form, Select, Switch, Button, Flex, AutoComplete } from 'antd';
+import { Form, Select, Switch, Button, Flex, AutoComplete, Collapse, Input } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 
 const Option = Select.Option as any;
@@ -82,7 +82,7 @@ export function ApiTestForm({
     const apiTestSelectedCategory = Form.useWatch('category', apiTestForm) as string | undefined;
     const apiTestSelectedFile = Form.useWatch('testFile', apiTestForm) as string | undefined;
 
-    const handleSubmit = (values: { category?: string; testFile?: string; testName?: string; verbose?: boolean }) => {
+    const handleSubmit = (values: { category?: string; testFile?: string; testName?: string; verbose?: boolean, baseApiUrl?: string; proApiUrl?: string; coinsUrl?: string; yieldsUrl?: string }) => {
         // Clear previous output
         onOutputChange('');
         setApiTestRunning(true);
@@ -94,6 +94,10 @@ export function ApiTestForm({
                 testFile: values.testFile === 'all' ? undefined : values.testFile,
                 testName: values.testName === 'all' ? undefined : values.testName,
                 verbose: values.verbose !== false,
+                baseApiUrl: values.baseApiUrl,
+                proApiUrl: values.proApiUrl,
+                coinsUrl: values.coinsUrl,
+                yieldsUrl: values.yieldsUrl,
             }
         };
 
@@ -130,6 +134,10 @@ export function ApiTestForm({
             initialValues={{
                 category: 'all',
                 verbose: true,
+                baseApiUrl: 'https://api.llama.fi',
+                proApiUrl: 'https://pro-api.llama.fi',
+                coinsUrl: 'https://coins.llama.fi',
+                yieldsUrl: 'https://yields.llama.fi',
             }}
             style={{ maxWidth: '400px' }}
         >
@@ -195,6 +203,32 @@ export function ApiTestForm({
             >
                 <Switch checkedChildren="Yes" unCheckedChildren="No" />
             </Form.Item>
+
+            <Collapse
+                ghost
+                items={[
+                    {
+                        key: '1',
+                        label: 'Base URLs',
+                        children: (
+                            <Flex vertical gap={10}>
+                                <Form.Item label="API Base URL" name="baseApiUrl" style={{ marginBottom: 0 }}>
+                                    <Input placeholder="https://api.llama.fi" />
+                                </Form.Item>
+                                <Form.Item label="Pro API Base URL" name="proApiUrl" style={{ marginBottom: 0 }}>
+                                    <Input placeholder="https://pro-api.llama.fi" />
+                                </Form.Item>
+                                <Form.Item label="Coins API Base URL" name="coinsUrl" style={{ marginBottom: 0 }}>
+                                    <Input placeholder="https://coins.llama.fi" />
+                                </Form.Item>
+                                <Form.Item label="Yields API Base URL" name="yieldsUrl" style={{ marginBottom: 0 }}>
+                                    <Input placeholder="https://yields.llama.fi" />
+                                </Form.Item>
+                            </Flex>
+                        ),
+                    },
+                ]}
+            />
 
             <Form.Item>
                 <Flex gap={10}>

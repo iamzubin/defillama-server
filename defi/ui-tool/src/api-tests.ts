@@ -74,6 +74,10 @@ export interface ApiTestOptions {
     testFile?: string;
     testName?: string;
     verbose?: boolean;
+    baseApiUrl?: string;
+    proApiUrl?: string;
+    coinsUrl?: string;
+    yieldsUrl?: string;
 }
 
 export interface TestResult {
@@ -109,7 +113,7 @@ export async function runApiTests(
     ws: any,
     options: ApiTestOptions
 ): Promise<TestResult | null> {
-    const { category = 'all', testFile, testName, verbose = true } = options;
+    const { category = 'all', testFile, testName, verbose = true, baseApiUrl, proApiUrl, coinsUrl, yieldsUrl } = options;
 
     if (category !== 'all' && !apiTestCategories.includes(category)) {
         safeSend(ws, { type: 'api-test-error', content: 'Invalid category' });
@@ -164,6 +168,10 @@ export async function runApiTests(
             env: {
                 ...process.env,
                 FORCE_COLOR: '1',
+                ...(baseApiUrl ? { BASE_API_URL: baseApiUrl, BETA_API_URL: baseApiUrl } : {}),
+                ...(proApiUrl ? { BETA_PRO_API_URL: proApiUrl } : {}),
+                ...(coinsUrl ? { BETA_COINS_URL: coinsUrl } : {}),
+                ...(yieldsUrl ? { BETA_YIELDS_URL: yieldsUrl } : {}),
             },
             detached: false,
             shell: false,
