@@ -48,7 +48,7 @@ async function start() {
     console.log(`WebSocket server running on port ${wss.options.port}`);
     // Start the React app
     console.log('Opening tool on the browser... (click here if it does not open automatically: http://localhost:5001)');
-    const npmPath = 'npm';
+    const npmPath = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     const reactAppPath = path.resolve(__dirname, '..');
 
     try {
