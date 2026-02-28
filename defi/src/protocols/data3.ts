@@ -1779,17 +1779,17 @@ const data3_0: Protocol[] = [
   {
     id: "2782",
     name: "Aktionariat",
-    address: "0x6f38e0f1a73c96cb3f42598613ea3474f09cb200",
-    symbol: "DAKS",
+    address: null,
+    symbol: "-",
     url: "https://www.aktionariat.com/",
-    description: "Platform provider for legal security tokens. Buy and sell private equity directly on-chain",
+    description: "Swiss equity tokenization platform with integrated onchain Direct Investment and Secondary Trading",
     chain: "Ethereum",
     logo: `${baseIconsUrl}/aktionariat.png`,
     audits: "0",
-    gecko_id: "draggable-aktionariat-ag",
+    gecko_id: null,
     cmcId: null,
-    tags: ["Private Equity"],
-    chains: ["Ethereum", "Optimism"],
+    tags: ["Onchain Equity"],
+    chains: ["Ethereum"],
     oraclesBreakdown: [ { name: "Chainlink", type: "Primary", proof: []} ],
     module: "aktionariat/index.js",
     twitter: "aktionariat",
@@ -54091,19 +54091,19 @@ const data3_3: Protocol[] = [
   },
   {
     id: "5145",
-    name: "IPOR Fusion",
+    name: "Fusion by IPOR",
     address: null,
     symbol: "-",
-    url: "https://ipor.io",
+    url: "https://app.ipor.io/fusion",
     description:
-      "IPOR Fusion is a meta DeFi aggregation, execution & intelligence engine that introduces a unified liquidity framework for on-chain asset management. Fusion combines various aggregation and routing protocols into a single smart contract layer, automating asset management and maximizing returns across yield sources. Imagine intelligence-driven execution for looping, carry trades, arbitrage, leveraged farming, and passive lending at your fingertips",
+      "Fusion (by IPOR) is a meta DeFi aggregation, execution & intelligence engine that introduces a unified liquidity framework for on-chain asset management. Fusion combines various aggregation and routing protocols into a single smart contract layer, automating asset management and maximizing returns across yield sources. Imagine intelligence-driven execution for looping, carry trades, arbitrage, leveraged farming, and passive lending at your fingertips",
     chain: "Arbitrum",
-    logo: `${baseIconsUrl}/ipor-fusion.svg`,
+    logo: `${baseIconsUrl}/fusion-by-ipor.svg`,
     audits: "2",
     gecko_id: null,
     cmcId: null,
     category: "Yield Aggregator",
-    chains: ["Arbitrum", "Ethereum", "Base", "Unichain", "TAC", "Ink"],
+    chains: ["Ethereum", "Arbitrum", "Base", "Unichain", "TAC", "Ink", "Plasma", "Avalanche", "Katana"],
     oraclesBreakdown: [
       {
         name: "Chainlink",
@@ -55368,7 +55368,10 @@ const data3_3: Protocol[] = [
     twitter: "InfiniteTradePr",
     audit_links: ["https://github.com/0xGuard-com/audit-reports/blob/master/Infinite%20Trading%20Protocol/Infinite%20Trading%20Protocol.pdf"],
     github: ["InfiniteTradingProtocol"],
-    listedAt: 1727970587
+    listedAt: 1727970587,
+    dimensions: {
+      fees: "infinite"
+    }
   },
   {
     id: "5203",

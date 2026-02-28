@@ -2806,8 +2806,8 @@ const data4: Protocol[] = [
     parentProtocol: "parent#beethoven-x",
     listedAt: 1738009211,
     dimensions: {
-      fees: "beethoven-x-v3",
-      dexs: "beets-v3"
+      fees: "beets-v3",
+      dexs: "beets-v3",
     }
   },
   {
@@ -4632,7 +4632,7 @@ const data4: Protocol[] = [
     parentProtocol: "parent#hyperliquid",
     listedAt: 1738964061,
     dimensions: {
-      fees: "hyperliquid",
+      fees: "hyperliquid-spot",
       dexs: "hyperliquid-spot"
     }
   },
@@ -22516,6 +22516,7 @@ const data4: Protocol[] = [
     audit_links: ["https://docs.gaib.ai/audits"],
     github: ["gaib-ai"],
     listedAt: 1754501739,
+    stablecoins: ["gaib-aid"],
     dimensions: {
       fees: "gaib",
     },
@@ -22946,6 +22947,7 @@ const data4: Protocol[] = [
     module: "dummy.js",
     twitter: "humidifi",
     dimensions: {
+      fees: "humidifi",
       dexs: {
         genuineSpikes: [["2025-08-14", "-"]],
         adapter: "humidifi"
@@ -28189,7 +28191,12 @@ const data4: Protocol[] = [
     forkedFromIds: ["1599"],
     github: ["ploutusFi"],
     treasury: "ploutos-money.js",
-    listedAt: 1759263458
+    listedAt: 1759263458,
+    deadUrl: true,
+    deadFrom: "2026-02-26",
+    hallmarks: [
+      ["2026-02-26", "Misconfigured oracle exploit"],
+    ],
   },
   {
     id: "6793",
