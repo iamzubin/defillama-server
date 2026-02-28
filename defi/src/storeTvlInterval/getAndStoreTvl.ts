@@ -170,6 +170,16 @@ async function getTvl(
             insertOnDb(useCurrentPrices, TABLES.TvlMetricsErrors2, { error: `[FALLBACK] ${String(e)}`, protocol: protocol.name, chain: storedKey.split('-')[0], storedKey });
             return;
           }
+
+          if (isSmallChain && !isFreshEnough) {
+            // Chain has been broken for >7 days — zero it out instead of failing the whole protocol
+            usdTvls[storedKey] = 0;
+            tokensBalances[storedKey] = {};
+            usdTokenBalances[storedKey] = {};
+            rawTokenBalances[storedKey] = {};
+            insertOnDb(useCurrentPrices, TABLES.TvlMetricsErrors2, { error: `[DROPPED] Chain broken >7d: ${String(e)}`, protocol: protocol.name, chain: storedKey.split('-')[0], storedKey });
+            return;
+          }
         } catch (fallbackErr) {
           console.error(`Fallback failed for ${protocol.name} on ${storedKey}`, fallbackErr);
         }

@@ -87,58 +87,105 @@ describe("TVL Fallback Logic", () => {
 
     const mockUnixTimestamp = 1700000000;
 
+    const baseTvlCall = {
+        unixTimestamp: mockUnixTimestamp,
+        protocol: mockProtocol,
+        useCurrentPrices: false,
+        storePreviousData: false,
+        fetchCurrentBlockData: false,
+        skipBlockData: true,
+        breakIfTvlIsZero: false,
+        maxRetries: 1,
+    };
+
     beforeEach(() => {
         jest.clearAllMocks();
         // explicit reset since clearAllMocks doesn't remove global mockImplementation
         require("../api2/db").getLatestProtocolItem.mockReset();
     });
 
-    it("should fail entirely if no fallback logic is present", async () => {
-        await expect(storeTvl2({
-            unixTimestamp: mockUnixTimestamp,
-            protocol: mockProtocol,
-            useCurrentPrices: false, // Don't hit DB
-            storePreviousData: false,
-            fetchCurrentBlockData: false,
-            skipBlockData: true, // Don't fetch real blocks
-            breakIfTvlIsZero: false,
-            maxRetries: 1, // Fail fast
-        })).rejects.toThrow("RPC Failed for Polygon");
+    it("should fail entirely if no fallback data is available", async () => {
+        await expect(storeTvl2(baseTvlCall)).rejects.toThrow("RPC Failed for Polygon");
     });
 
-    it("should use fallback data if a small chain fails", async () => {
-        // Setup mock so that getLatestProtocolItem returns a valid DB item with a large TVL
+    it("should use fallback data if a small chain fails and data is fresh (<7 days)", async () => {
         const mockDb = require("../api2/db");
-        mockDb.getLatestProtocolItem.mockImplementation(async () => {
-            return {
-                SK: mockUnixTimestamp - 3600, // 1 hour ago (extremely fresh)
-                tvl: 100, // Total is 100M
-                polygon: 4, // Polygon is only 4M (which is < 5% of 100M)
-            };
-        });
-
-        // Setup the token records mock
-        const records = require("../utils/getLastRecord");
-        records.hourlyTvl.mockReturnValue("hourlyTvl#123");
+        mockDb.getLatestProtocolItem
+            .mockResolvedValueOnce({
+                SK: mockUnixTimestamp - 3600, // 1 hour ago
+                tvl: 100,
+                polygon: 4, // 4% of total — under 5% threshold
+            }) // hourlyTvl
+            .mockResolvedValueOnce({ polygon: { "polygon:0xabc": 4 } }) // hourlyTokensTvl
+            .mockResolvedValueOnce({ polygon: { "polygon:0xabc": 4 } }) // hourlyUsdTokensTvl
+            .mockResolvedValueOnce({ polygon: { "polygon:0xabc": "4" } }); // hourlyRawTokensTvl
 
         const result = await storeTvl2({
-            unixTimestamp: mockUnixTimestamp,
-            protocol: mockProtocol,
-            useCurrentPrices: false, // Don't hit DB
-            storePreviousData: false,
-            fetchCurrentBlockData: false,
-            skipBlockData: true,
-            breakIfTvlIsZero: false,
-            maxRetries: 1,
-            isRunFromUITool: true // returns the generated tvl object
+            ...baseTvlCall,
+            isRunFromUITool: true,
         });
 
-        // The overall TVL shouldn't throw, and it should return the combined results
-        // 100M from ethereum (freshly mocked) + 4M from polygon (fallback)
         expect(result).toBeDefined();
         if (result && 'usdTvls' in result) {
             expect(result.usdTvls.tvl).toBe(104);
             expect(result.usdTvls.polygon).toBe(4);
+            expect(result.usdTvls.ethereum).toBe(100);
+        } else {
+            throw new Error("Expected a return object with usdTvls");
+        }
+    });
+
+    it("should fail if chain is at or above 5% of total TVL", async () => {
+        const mockDb = require("../api2/db");
+        mockDb.getLatestProtocolItem.mockResolvedValueOnce({
+            SK: mockUnixTimestamp - 3600,
+            tvl: 100,
+            polygon: 5, // exactly 5% → NOT small enough for fallback
+        });
+
+        await expect(storeTvl2(baseTvlCall)).rejects.toThrow("RPC Failed for Polygon");
+    });
+
+    it("should zero out chain if data is stale (>7 days) and chain is small", async () => {
+        const mockDb = require("../api2/db");
+        mockDb.getLatestProtocolItem.mockResolvedValueOnce({
+            SK: mockUnixTimestamp - 7 * 24 * 3600 - 1, // just over 7 days ago
+            tvl: 100,
+            polygon: 4, // small chain
+        });
+
+        const result = await storeTvl2({
+            ...baseTvlCall,
+            isRunFromUITool: true,
+        });
+
+        expect(result).toBeDefined();
+        if (result && 'usdTvls' in result) {
+            // polygon should be zeroed out, not cached or failed
+            expect(result.usdTvls.polygon).toBe(0);
+            expect(result.usdTvls.ethereum).toBe(100);
+            expect(result.usdTvls.tvl).toBe(100); // 100 + 0
+        } else {
+            throw new Error("Expected a return object with usdTvls");
+        }
+    });
+
+    it("should zero out chain if no cached data exists at all and chain is small", async () => {
+        const mockDb = require("../api2/db");
+        // Return an object with no SK (no previous data)
+        mockDb.getLatestProtocolItem.mockResolvedValueOnce({
+            tvl: 100,
+            polygon: 1, // small chain, but no SK means isFreshEnough = false
+        });
+
+        const result = await storeTvl2({
+            ...baseTvlCall,
+            isRunFromUITool: true,
+        });
+
+        expect(result).toBeDefined();
+        if (result && 'usdTvls' in result) {
+            expect(result.usdTvls.polygon).toBe(0);
             expect(result.usdTvls.ethereum).toBe(100);
         } else {
             throw new Error("Expected a return object with usdTvls");
